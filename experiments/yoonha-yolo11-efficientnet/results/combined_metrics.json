@@ -1,0 +1,16 @@
+{
+  "yolo_epochs": 50,
+  "efficientnet_epochs": 50,
+  "detector_confidence_threshold": 0.25,
+  "matching_iou_threshold": 0.5,
+  "ground_truth_characters": 10443,
+  "predicted_boxes": 12720,
+  "matched_boxes": 10250,
+  "correctly_detected_and_classified": 10163,
+  "detector_precision_at_0.25": 0.8058176100628931,
+  "detector_recall_at_0.25": 0.9815187206741358,
+  "classification_accuracy_on_matched_boxes": 0.9915121951219512,
+  "end_to_end_character_precision": 0.7989779874213836,
+  "end_to_end_character_recall": 0.9731877812889017,
+  "end_to_end_character_f1": 0.8775201830505547
+}
