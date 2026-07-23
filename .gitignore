@@ -5,6 +5,7 @@ __pycache__/
 *.pth
 *.pth.tar
 *.pt
+!models/*.pt
 data/
 datasets/
 checkpoints/
