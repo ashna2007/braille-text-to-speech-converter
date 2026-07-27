@@ -1,13 +1,21 @@
 from hashlib import sha256
 from io import BytesIO
+import os
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+MATPLOTLIB_CACHE = PROJECT_ROOT / ".cache" / "matplotlib"
+MATPLOTLIB_CACHE.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(MATPLOTLIB_CACHE))
 
 from PIL import Image
 import streamlit as st
 
-from src.inference import run_pipeline
-from src.model_loader import load_models
-from src.text_to_speech import synthesize_speech
-from src.translator import translate_braille
+from backend.inference import run_pipeline
+from backend.model_loader import load_models
+from backend.text_to_speech import synthesize_speech
+from backend.translator import translate_braille
 
 
 st.set_page_config(

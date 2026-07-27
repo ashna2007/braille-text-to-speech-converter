@@ -5,8 +5,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import torch
 
-from src.model_loader import ModelBundle
-from src.reading_order import order_predictions
+from backend.model_loader import ModelBundle
+from backend.reading_order import order_predictions
 
 
 def crop_from_predicted_box(
