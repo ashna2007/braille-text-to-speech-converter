@@ -3,7 +3,7 @@ import json
 import torch
 from PIL import Image
 
-from combined import (
+from prototype_testing.prisha_yolov11_vit_braille4k.combined import (
     COCO_ROOT,
     COCO_SPLITS,
     build_classifier,
