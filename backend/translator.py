@@ -1,5 +1,6 @@
 """Cross-platform Liblouis integration for Braille back-translation."""
 
+from dataclasses import dataclass
 from functools import lru_cache
 import os
 from pathlib import Path
@@ -12,7 +13,21 @@ import sys
 DISPLAY_TABLE = "unicode.dis"
 GRADE1_TABLE = "en-us-g1.ctb"
 GRADE2_TABLE = "en-us-g2.ctb"
+GRADE_TABLES = {
+    1: GRADE1_TABLE,
+    2: GRADE2_TABLE,
+}
 SPACE_CELL = "\u2800"
+
+
+@dataclass(frozen=True)
+class TranslationResult:
+    raw_labels: str
+    braille_cells: str
+    text: str
+    grade: int
+    available: bool
+    error: str | None = None
 
 
 class LiblouisUnavailableError(RuntimeError):
@@ -28,7 +43,10 @@ def _executable_names() -> tuple[str, ...]:
 def _executable_candidates() -> list[Path]:
     candidates: list[Path] = []
 
-    configured_executable = os.environ.get("LIBLOUIS_TRANSLATE")
+    configured_executable = os.environ.get(
+        "LIBLOUIS_TRANSLATE",
+        os.environ.get("LOU_TRANSLATE"),
+    )
     if configured_executable:
         candidates.append(Path(configured_executable).expanduser())
 
@@ -125,6 +143,7 @@ def _run_liblouis(args: list[str], text: str) -> str:
             encoding="utf-8",
             env=_table_environment(),
             check=True,
+            timeout=10,
         )
     except subprocess.CalledProcessError as exc:
         detail = exc.stderr.strip() or "Liblouis returned a non-zero exit code."
@@ -133,21 +152,31 @@ def _run_liblouis(args: list[str], text: str) -> str:
     return result.stdout.rstrip("\r\n")
 
 
-def text_to_braille(text: str, table: str = GRADE2_TABLE) -> str:
+def _table_for_grade(grade: int) -> str:
+    try:
+        return GRADE_TABLES[grade]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported Braille grade {grade!r}; expected 1 or 2.") from exc
+
+
+def text_to_braille(text: str, grade: int = 1) -> str:
     """Translate ordinary text to Unicode Braille cells."""
 
-    return _run_liblouis(["-d", DISPLAY_TABLE, table], text)
+    return _run_liblouis(["-d", DISPLAY_TABLE, _table_for_grade(grade)], text)
 
 
-def braille_to_text(braille: str, table: str = GRADE2_TABLE) -> str:
+def braille_to_text(braille: str, grade: int = 1) -> str:
     """Back-translate Unicode Braille cells to ordinary text."""
 
-    return _run_liblouis(["-b", "-d", DISPLAY_TABLE, table], braille)
+    return _run_liblouis(
+        ["-b", "-d", DISPLAY_TABLE, _table_for_grade(grade)],
+        braille,
+    )
 
 
 @lru_cache(maxsize=1)
 def _letter_to_cell() -> dict[str, str]:
-    cells = text_to_braille(string.ascii_lowercase, GRADE1_TABLE)
+    cells = text_to_braille(string.ascii_lowercase, grade=1)
     if len(cells) != len(string.ascii_uppercase):
         raise RuntimeError(
             "Liblouis returned an unexpected Grade-1 alphabet mapping."
@@ -176,12 +205,43 @@ def letters_to_braille_cells(letters: str) -> str:
     return "".join(cells)
 
 
-def translate_braille(recognized_text: str) -> str:
-    """Interpret A-Z Braille-cell labels as contracted English Braille."""
+def translate_braille(
+    recognized_text: str,
+    grade: int = 1,
+) -> TranslationResult:
+    """Translate classifier labels and retain each intermediate representation."""
 
-    recognized_text = recognized_text.strip()
-    if not recognized_text:
-        return ""
+    raw_labels = recognized_text.strip()
+    if not raw_labels:
+        return TranslationResult(
+            raw_labels="",
+            braille_cells="",
+            text="",
+            grade=grade,
+            available=True,
+        )
 
-    braille_cells = letters_to_braille_cells(recognized_text)
-    return braille_to_text(braille_cells, GRADE2_TABLE).strip()
+    try:
+        braille_cells = letters_to_braille_cells(raw_labels)
+        translated_text = braille_to_text(braille_cells, grade=grade).strip()
+        return TranslationResult(
+            raw_labels=raw_labels,
+            braille_cells=braille_cells,
+            text=translated_text,
+            grade=grade,
+            available=True,
+        )
+    except (
+        LiblouisUnavailableError,
+        RuntimeError,
+        subprocess.SubprocessError,
+        ValueError,
+    ) as exc:
+        return TranslationResult(
+            raw_labels=raw_labels,
+            braille_cells="",
+            text=raw_labels,
+            grade=grade,
+            available=False,
+            error=str(exc),
+        )

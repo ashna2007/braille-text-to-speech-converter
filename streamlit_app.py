@@ -46,6 +46,15 @@ with st.sidebar:
         value=0.25,
         step=0.05,
     )
+    translation_grade = st.selectbox(
+        "Braille translation",
+        options=[1, 2],
+        format_func=lambda grade: (
+            "Grade 1 (uncontracted)"
+            if grade == 1
+            else "Grade 2 (contracted)"
+        ),
+    )
 
 source_mode = st.segmented_control(
     "Image source",
@@ -74,7 +83,6 @@ if source is not None:
 if st.session_state.get("source_signature") != source_signature:
     st.session_state["source_signature"] = source_signature
     st.session_state.pop("pipeline_result", None)
-    st.session_state.pop("translated_text", None)
     st.session_state.pop("audio_result", None)
     st.session_state.pop("audio_requested", None)
 
@@ -95,12 +103,8 @@ if analyze_clicked and image is not None:
             models=model_bundle,
             detector_confidence=detector_confidence,
         )
-        translated_text = translate_braille(
-            pipeline_result["recognized_text"]
-        )
 
         st.session_state["pipeline_result"] = pipeline_result
-        st.session_state["translated_text"] = translated_text
         st.session_state.pop("audio_result", None)
         st.session_state.pop("audio_requested", None)
         status.update(
@@ -117,9 +121,13 @@ if analyze_clicked and image is not None:
         st.exception(exc)
 
 result = st.session_state.get("pipeline_result")
-translated_text = st.session_state.get("translated_text", "")
 
 if result is not None:
+    translation_result = translate_braille(
+        result["recognized_text"],
+        grade=translation_grade,
+    )
+
     st.subheader("Recognition result")
     st.image(
         result["annotated_image"],
@@ -138,11 +146,30 @@ if result is not None:
     )
     metric_columns[2].metric("Device", result["device"])
 
+    if not translation_result.available:
+        st.warning(translation_result.error)
+
     edited_text = st.text_area(
-        "Recognized text",
-        value=translated_text,
+        "Recognized English text",
+        value=translation_result.text,
         height=140,
+        key=f"recognized_text_{source_signature}_{translation_grade}",
     )
+
+    with st.expander("Braille translation details"):
+        detail_columns = st.columns(2)
+        detail_columns[0].text_area(
+            "Raw cell labels",
+            value=translation_result.raw_labels,
+            height=120,
+            disabled=True,
+        )
+        detail_columns[1].text_area(
+            "Unicode Braille",
+            value=translation_result.braille_cells,
+            height=120,
+            disabled=True,
+        )
 
     action_columns = st.columns(3)
     action_columns[0].download_button(
