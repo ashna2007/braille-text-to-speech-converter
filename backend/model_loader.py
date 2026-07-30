@@ -7,24 +7,20 @@ from typing import Callable
 import torch
 from torch import nn
 from torchvision import models, transforms
-from ultralytics import YOLO
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MODEL_DIR = PROJECT_ROOT / "models"
-DETECTOR_PATH = MODEL_DIR / "yolo11_best.pt"
 CLASSIFIER_PATH = MODEL_DIR / "efficientnet_b0_best_model.pt"
 CLASS_MAPPING_PATH = MODEL_DIR / "class_to_idx.json"
 
 
 @dataclass
 class ModelBundle:
-    detector: YOLO
     classifier: nn.Module
     classifier_transform: Callable
     idx_to_class: dict[int, str]
     torch_device: torch.device
-    yolo_device: str
     inference_lock: Lock = field(default_factory=Lock)
 
 
@@ -40,18 +36,17 @@ def _validate_model_file(path: Path) -> None:
             )
 
 
-def _select_device() -> tuple[torch.device, str]:
+def _select_device() -> torch.device:
     if torch.cuda.is_available():
-        return torch.device("cuda:0"), "0"
+        return torch.device("cuda:0")
 
     if torch.backends.mps.is_available():
-        return torch.device("mps"), "mps"
+        return torch.device("mps")
 
-    return torch.device("cpu"), "cpu"
+    return torch.device("cpu")
 
 
 def load_models() -> ModelBundle:
-    _validate_model_file(DETECTOR_PATH)
     _validate_model_file(CLASSIFIER_PATH)
 
     class_to_idx = json.loads(CLASS_MAPPING_PATH.read_text(encoding="utf-8"))
@@ -60,9 +55,7 @@ def load_models() -> ModelBundle:
         for class_name, class_index in class_to_idx.items()
     }
 
-    torch_device, yolo_device = _select_device()
-
-    detector = YOLO(str(DETECTOR_PATH))
+    torch_device = _select_device()
 
     classifier = models.efficientnet_b0(weights=None)
     input_features = classifier.classifier[1].in_features
@@ -89,10 +82,8 @@ def load_models() -> ModelBundle:
     )
 
     return ModelBundle(
-        detector=detector,
         classifier=classifier,
         classifier_transform=classifier_transform,
         idx_to_class=idx_to_class,
         torch_device=torch_device,
-        yolo_device=yolo_device,
     )

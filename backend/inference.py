@@ -7,6 +7,7 @@ import torch
 
 from backend.model_loader import ModelBundle
 from backend.reading_order import order_predictions
+from backend.roboflow_detector import detect_braille
 
 
 def crop_from_predicted_box(
@@ -54,30 +55,24 @@ def run_pipeline(
     image: Image.Image,
     models: ModelBundle,
     detector_confidence: float = 0.25,
-    detector_iou: float = 0.7,
-    max_detections: int = 500,
 ) -> dict[str, Any]:
     started_at = perf_counter()
     original_image = ImageOps.exif_transpose(image).convert("RGB")
 
+    detections = detect_braille(
+        original_image,
+        confidence_threshold=detector_confidence,
+    )
+    predicted_boxes = np.asarray(
+        [detection["box"] for detection in detections],
+        dtype=float,
+    ).reshape(-1, 4)
+    detector_scores = np.asarray(
+        [detection["confidence"] for detection in detections],
+        dtype=float,
+    )
+
     with models.inference_lock:
-        detector_result = models.detector.predict(
-            source=original_image,
-            imgsz=640,
-            conf=detector_confidence,
-            iou=detector_iou,
-            max_det=max_detections,
-            device=models.yolo_device,
-            verbose=False,
-        )[0]
-
-        if detector_result.boxes is None or len(detector_result.boxes) == 0:
-            predicted_boxes = np.empty((0, 4), dtype=float)
-            detector_scores = np.empty(0, dtype=float)
-        else:
-            predicted_boxes = detector_result.boxes.xyxy.cpu().numpy()
-            detector_scores = detector_result.boxes.conf.cpu().numpy()
-
         crop_tensors = [
             models.classifier_transform(
                 crop_from_predicted_box(original_image, box)
@@ -124,5 +119,6 @@ def run_pipeline(
         "predictions": ordered_predictions,
         "recognized_text": recognized_text,
         "elapsed_seconds": perf_counter() - started_at,
-        "device": models.yolo_device,
+        "device": str(models.torch_device),
+        "detector": "Roboflow serverless",
     }

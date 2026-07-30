@@ -14,6 +14,7 @@ import streamlit as st
 
 from backend.inference import run_pipeline
 from backend.model_loader import load_models
+from backend.result_formatting import predictions_markdown
 from backend.text_to_speech import synthesize_speech
 from backend.translator import translate_braille
 
@@ -95,9 +96,10 @@ analyze_clicked = st.button(
 if analyze_clicked and image is not None:
     status = st.status("Recognizing Braille...", expanded=True)
     try:
-        status.write("Loading YOLO11n and EfficientNet-B0")
+        status.write("Loading the EfficientNet-B0 classifier")
         model_bundle = get_models()
-        status.write("Detecting and classifying Braille cells")
+        status.write("Locating Braille cells with Roboflow")
+        status.write("Classifying detected crops locally")
         pipeline_result = run_pipeline(
             image=image,
             models=model_bundle,
@@ -203,15 +205,7 @@ if result is not None:
         st.info("Text-to-speech integration is pending.")
 
     with st.expander("Character predictions"):
-        table_rows = [
-            {
-                "Order": prediction["reading_index"],
-                "Line": prediction["line"],
-                "Letter": prediction["letter"],
-                "Detector confidence": prediction["detector_confidence"],
-                "Classifier confidence": prediction["classifier_confidence"],
-                "Box": prediction["box"],
-            }
-            for prediction in result["predictions"]
-        ]
-        st.dataframe(table_rows, hide_index=True, width="stretch")
+        if result["predictions"]:
+            st.markdown(predictions_markdown(result["predictions"]))
+        else:
+            st.caption("No character predictions to display.")
