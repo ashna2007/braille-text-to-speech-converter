@@ -1,5 +1,5 @@
 from time import perf_counter
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -7,7 +7,30 @@ import torch
 
 from backend.model_loader import ModelBundle
 from backend.reading_order import order_predictions
-from backend.roboflow_detector import detect_braille
+
+
+DetectorBackend = Literal["roboflow", "local"]
+
+
+def _detect_braille(
+    image: Image.Image,
+    detector_backend: DetectorBackend,
+    confidence_threshold: float,
+):
+    if detector_backend == "roboflow":
+        from backend.roboflow_detector import detect_braille
+
+        return detect_braille(image, confidence_threshold=confidence_threshold)
+
+    if detector_backend == "local":
+        from backend.local_detector import detect_braille
+
+        return detect_braille(image, confidence_threshold=confidence_threshold)
+
+    raise ValueError(
+        f"Unsupported detector backend {detector_backend!r}; "
+        "expected 'roboflow' or 'local'."
+    )
 
 
 def crop_from_predicted_box(
@@ -55,12 +78,14 @@ def run_pipeline(
     image: Image.Image,
     models: ModelBundle,
     detector_confidence: float = 0.25,
+    detector_backend: DetectorBackend = "roboflow",
 ) -> dict[str, Any]:
     started_at = perf_counter()
     original_image = ImageOps.exif_transpose(image).convert("RGB")
 
-    detections = detect_braille(
+    detections = _detect_braille(
         original_image,
+        detector_backend=detector_backend,
         confidence_threshold=detector_confidence,
     )
     predicted_boxes = np.asarray(
@@ -120,5 +145,9 @@ def run_pipeline(
         "recognized_text": recognized_text,
         "elapsed_seconds": perf_counter() - started_at,
         "device": str(models.torch_device),
-        "detector": "Roboflow serverless",
+        "detector": (
+            "Roboflow API"
+            if detector_backend == "roboflow"
+            else "Local YOLO"
+        ),
     }

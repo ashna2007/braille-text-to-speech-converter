@@ -5,11 +5,13 @@ import math
 import os
 from pathlib import Path
 import re
-from typing import Any, TypedDict
+from typing import Any
 
 from dotenv import load_dotenv
 from inference_sdk import InferenceHTTPClient
 from PIL import Image, ImageDraw, ImageFont
+
+from backend.detection_types import BrailleDetection
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -21,11 +23,6 @@ ROBOFLOW_MODEL_ID = os.environ.get(
 DEFAULT_CONFIDENCE_THRESHOLD = 0.25
 
 _MODEL_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*/[1-9][0-9]*$")
-
-
-class BrailleDetection(TypedDict):
-    box: list[float]
-    confidence: float
 
 
 class RoboflowConfigurationError(RuntimeError):

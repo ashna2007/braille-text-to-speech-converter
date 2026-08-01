@@ -40,6 +40,14 @@ st.title("Braille Reader")
 
 with st.sidebar:
     st.subheader("Detection settings")
+    detector_choice = st.segmented_control(
+        "Detector backend",
+        options=["Roboflow API", "Local YOLO"],
+        default="Roboflow API",
+    )
+    detector_backend = (
+        "roboflow" if detector_choice == "Roboflow API" else "local"
+    )
     detector_confidence = st.slider(
         "Confidence threshold",
         min_value=0.05,
@@ -98,12 +106,13 @@ if analyze_clicked and image is not None:
     try:
         status.write("Loading the EfficientNet-B0 classifier")
         model_bundle = get_models()
-        status.write("Locating Braille cells with Roboflow")
+        status.write(f"Locating Braille cells with {detector_choice}")
         status.write("Classifying detected crops locally")
         pipeline_result = run_pipeline(
             image=image,
             models=model_bundle,
             detector_confidence=detector_confidence,
+            detector_backend=detector_backend,
         )
 
         st.session_state["pipeline_result"] = pipeline_result
@@ -140,13 +149,14 @@ if result is not None:
     if not result["predictions"]:
         st.warning("No Braille characters were detected.")
 
-    metric_columns = st.columns(3)
+    metric_columns = st.columns(4)
     metric_columns[0].metric("Detected characters", len(result["predictions"]))
     metric_columns[1].metric(
         "Inference time",
         f"{result['elapsed_seconds']:.2f} s",
     )
     metric_columns[2].metric("Device", result["device"])
+    metric_columns[3].metric("Detector", result["detector"])
 
     if not translation_result.available:
         st.warning(translation_result.error)

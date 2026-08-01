@@ -1,15 +1,15 @@
 # Braille text-to-speech converter
 
-A Streamlit application that locates Braille cells with a hosted Roboflow
-object-detection model, classifies each crop locally with EfficientNet-B0,
-orders the predictions for reading, and back-translates the result with
-Liblouis.
+A Streamlit application that locates Braille cells with either a hosted
+Roboflow model or local YOLO11 weights, classifies each crop locally with
+EfficientNet-B0, orders the predictions for reading, and back-translates the
+result with Liblouis.
 
 ## Project layout
 
 ```text
 backend/                 Detection, classification, and translation code
-models/                  EfficientNet weights and class mapping
+models/                  Local YOLO/ EfficientNet weights and class mapping
 experiments/             Saved experiment results and evaluation artifacts
 prototype_testing/       Training notebooks and alternative model pipelines
 streamlit-sample-images/ Example inputs
@@ -45,6 +45,15 @@ The `.env` file is ignored by Git. The configured model is
 editing code, set `ROBOFLOW_MODEL_ID=project-name/version` in the process
 environment.
 
+The application sidebar provides two interchangeable detector backends:
+
+- **Roboflow API** uses the configured hosted model and requires
+  `ROBOFLOW_API_KEY`.
+- **Local YOLO** uses `models/yolo11_best.pt` and does not require an API key.
+
+Both backends produce boxes only. The selected detector does not control
+Braille letter classification.
+
 Liblouis is a system dependency. Install it for your platform:
 
 ```bash
@@ -72,6 +81,6 @@ Run the application from the project root:
 python -m streamlit run streamlit_app.py
 ```
 
-The hosted model is used only to locate boxes. Roboflow class labels are
+The selected detector is used only to locate boxes. Detector class labels are
 discarded; every detected crop is classified by the local EfficientNet model
 before the results are sorted into reading order.
