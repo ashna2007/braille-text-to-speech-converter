@@ -64,6 +64,15 @@ with st.sidebar:
             else "Grade 2 (contracted)"
         ),
     )
+    st.subheader("Debugging")
+    debug_crops_enabled = st.toggle(
+        "Save and display detected crops",
+        value=False,
+        help=(
+            "Temporarily saves the exact pre-classification crops to "
+            "debug_crops/ and displays them below the result."
+        ),
+    )
 
 source_mode = st.segmented_control(
     "Image source",
@@ -104,7 +113,7 @@ analyze_clicked = st.button(
 if analyze_clicked and image is not None:
     status = st.status("Recognizing Braille...", expanded=True)
     try:
-        status.write("Loading the EfficientNet-B0 classifier")
+        status.write("Loading EfficientNet-B0")
         model_bundle = get_models()
         status.write(f"Locating Braille cells with {detector_choice}")
         status.write("Classifying detected crops locally")
@@ -113,6 +122,7 @@ if analyze_clicked and image is not None:
             models=model_bundle,
             detector_confidence=detector_confidence,
             detector_backend=detector_backend,
+            debug_crops=debug_crops_enabled,
         )
 
         st.session_state["pipeline_result"] = pipeline_result
@@ -149,7 +159,7 @@ if result is not None:
     if not result["predictions"]:
         st.warning("No Braille characters were detected.")
 
-    metric_columns = st.columns(4)
+    metric_columns = st.columns(5)
     metric_columns[0].metric("Detected characters", len(result["predictions"]))
     metric_columns[1].metric(
         "Inference time",
@@ -157,6 +167,7 @@ if result is not None:
     )
     metric_columns[2].metric("Device", result["device"])
     metric_columns[3].metric("Detector", result["detector"])
+    metric_columns[4].metric("Primary classifier", result["classifier"])
 
     if not translation_result.available:
         st.warning(translation_result.error)
@@ -219,3 +230,22 @@ if result is not None:
             st.markdown(predictions_markdown(result["predictions"]))
         else:
             st.caption("No character predictions to display.")
+
+    if debug_crops_enabled and result.get("debug_crops"):
+        with st.expander("Debug crops", expanded=True):
+            st.caption(
+                "Exact YOLO-detected crops sent to EfficientNet-B0. "
+                "They are also saved in debug_crops/."
+            )
+            debug_columns = st.columns(min(4, len(result["debug_crops"])))
+            for position, debug_crop in enumerate(result["debug_crops"]):
+                column = debug_columns[position % len(debug_columns)]
+                column.image(
+                    debug_crop["image"],
+                    caption=(
+                        f"{debug_crop['index']:02d}: "
+                        f"{debug_crop['letter']} "
+                        f"({debug_crop['confidence']:.2f})"
+                    ),
+                    width="stretch",
+                )

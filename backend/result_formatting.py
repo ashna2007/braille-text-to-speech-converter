@@ -7,8 +7,8 @@ def predictions_markdown(predictions: list[dict[str, Any]]) -> str:
     """Render predictions without Streamlit's native PyArrow dataframe path."""
 
     rows = [
-        "| Order | Line | Letter | Detector confidence | "
-        "Classifier confidence | Box |",
+        "| Order | Line | Letter | Classifier confidence | "
+        "Detector confidence | Box |",
         "|---:|---:|:---:|---:|---:|:---|",
     ]
     for prediction in predictions:
@@ -17,8 +17,8 @@ def predictions_markdown(predictions: list[dict[str, Any]]) -> str:
             f"| {prediction['reading_index']} "
             f"| {prediction['line']} "
             f"| {prediction['letter']} "
-            f"| {prediction['detector_confidence']:.4f} "
             f"| {prediction['classifier_confidence']:.4f} "
+            f"| {prediction['detector_confidence']:.4f} "
             f"| `{box}` |"
         )
     return "\n".join(rows)

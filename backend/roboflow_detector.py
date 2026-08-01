@@ -120,7 +120,7 @@ def _normalise_prediction(
         return None
 
     # Roboflow class labels are deliberately omitted. Classification remains
-    # the responsibility of the local EfficientNet/ResNet stage.
+    # the responsibility of the local EfficientNet stage.
     return {
         "box": [x1, y1, x2, y2],
         "confidence": confidence,

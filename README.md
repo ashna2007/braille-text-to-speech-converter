@@ -2,14 +2,14 @@
 
 A Streamlit application that locates Braille cells with either a hosted
 Roboflow model or local YOLO11 weights, classifies each crop locally with
-EfficientNet-B0, orders the predictions for reading, and back-translates the
+EfficientNet-B0, orders its predictions for reading, and back-translates the
 result with Liblouis.
 
 ## Project layout
 
 ```text
 backend/                 Detection, classification, and translation code
-models/                  Local YOLO/ EfficientNet weights and class mapping
+models/                  YOLO, EfficientNet, and class mapping files
 experiments/             Saved experiment results and evaluation artifacts
 prototype_testing/       Training notebooks and alternative model pipelines
 streamlit-sample-images/ Example inputs
@@ -54,6 +54,9 @@ The application sidebar provides two interchangeable detector backends:
 Both backends produce boxes only. The selected detector does not control
 Braille letter classification.
 
+EfficientNet-B0 classifies every detected crop. Its predictions control the
+annotated labels, recognized text, and Liblouis translation.
+
 Liblouis is a system dependency. Install it for your platform:
 
 ```bash
@@ -68,8 +71,7 @@ On Windows, install Liblouis and set either `LIBLOUIS_HOME` to its installation
 directory or `LIBLOUIS_TRANSLATE` to the full path of `lou_translate.exe`.
 Those environment variables can also override discovery on macOS and Linux.
 
-If the classifier file in `models/` is a Git LFS pointer, download the real
-weights:
+If any model file in `models/` is a Git LFS pointer, download the real weights:
 
 ```bash
 git lfs pull
@@ -82,5 +84,5 @@ python -m streamlit run streamlit_app.py
 ```
 
 The selected detector is used only to locate boxes. Detector class labels are
-discarded; every detected crop is classified by the local EfficientNet model
-before the results are sorted into reading order.
+discarded; every detected crop is classified by EfficientNet-B0 before its
+results are sorted into reading order.

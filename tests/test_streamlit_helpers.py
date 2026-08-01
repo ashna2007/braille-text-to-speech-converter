@@ -18,4 +18,8 @@ class StreamlitHelperTests(TestCase):
             ]
         )
 
-        self.assertIn("| 1 | 1 | D | 0.8372 | 0.9980 | `10, 20, 30, 40` |", markdown)
+        self.assertIn(
+            "| 1 | 1 | D | 0.9980 | 0.8372 "
+            "| `10, 20, 30, 40` |",
+            markdown,
+        )
