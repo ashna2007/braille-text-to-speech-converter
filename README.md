@@ -1,9 +1,88 @@
-# braille-text-to-speech-converter
+# Braille text-to-speech converter
 
-**Make sure to push your prototype code into the prototype_testing folder!**
+A Streamlit application that locates Braille cells with either a hosted
+Roboflow model or local YOLO11 weights, classifies each crop locally with
+EfficientNet-B0, orders its predictions for reading, and back-translates the
+result with Liblouis.
 
-## Name your notebook in this format:
+## Project layout
 
-[firstname]_[object detection model]_[classification model]_braille4k
+```text
+backend/                 Detection, classification, and translation code
+models/                  YOLO, EfficientNet, and class mapping files
+experiments/             Saved experiment results and evaluation artifacts
+prototype_testing/       Training notebooks and alternative model pipelines
+streamlit-sample-images/ Example inputs
+streamlit_app.py         Streamlit application entry point
+```
 
-*example: ashna_yolov11_resnet50_braille4k.ipynb*
+## Setup
+
+The Roboflow Inference SDK currently requires Python 3.10–3.12. Create a
+Python 3.12 environment and install the dependencies:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+Create a private local environment file from the template:
+
+```bash
+cp .env.example .env
+```
+
+Set your real key in `.env`:
+
+```text
+ROBOFLOW_API_KEY=your_real_key
+```
+
+The `.env` file is ignored by Git. The configured model is
+`braille-detection-f0rb5/10`, called through
+`https://serverless.roboflow.com`. To select another deployment without
+editing code, set `ROBOFLOW_MODEL_ID=project-name/version` in the process
+environment.
+
+The application sidebar provides two interchangeable detector backends:
+
+- **Roboflow API** uses the configured hosted model and requires
+  `ROBOFLOW_API_KEY`.
+- **Local YOLO** uses `models/yolo11_best.pt` and does not require an API key.
+
+Both backends produce boxes only. The selected detector does not control
+Braille letter classification.
+
+EfficientNet-B0 classifies every detected crop. Its predictions control the
+annotated labels, recognized text, and Liblouis translation.
+
+Liblouis is a system dependency. Install it for your platform:
+
+```bash
+# macOS
+brew install liblouis
+
+# Debian/Ubuntu
+sudo apt install liblouis-bin
+```
+
+On Windows, install Liblouis and set either `LIBLOUIS_HOME` to its installation
+directory or `LIBLOUIS_TRANSLATE` to the full path of `lou_translate.exe`.
+Those environment variables can also override discovery on macOS and Linux.
+
+If any model file in `models/` is a Git LFS pointer, download the real weights:
+
+```bash
+git lfs pull
+```
+
+Run the application from the project root:
+
+```bash
+python -m streamlit run streamlit_app.py
+```
+
+The selected detector is used only to locate boxes. Detector class labels are
+discarded; every detected crop is classified by EfficientNet-B0 before its
+results are sorted into reading order.
