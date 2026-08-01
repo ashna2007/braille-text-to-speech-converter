@@ -9,3 +9,10 @@ __pycache__/
 data/
 datasets/
 checkpoints/
+.cache/
+.env
+.env.*
+!.env.example
+.venv/
+.venv-*/
+debug_crops/
