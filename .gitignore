@@ -1,4 +1,10 @@
 .DS_Store
+.cache/
+.env
+.env.*
+!.env.example
+.venv/
+.venv-*/
 __pycache__/
 *.zip
 *.tar.gz

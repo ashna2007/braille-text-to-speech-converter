@@ -1,13 +1,22 @@
 from hashlib import sha256
 from io import BytesIO
+import os
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+MATPLOTLIB_CACHE = PROJECT_ROOT / ".cache" / "matplotlib"
+MATPLOTLIB_CACHE.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(MATPLOTLIB_CACHE))
 
 from PIL import Image
 import streamlit as st
 
-from src.inference import run_pipeline
-from src.model_loader import load_models
-from src.text_to_speech import synthesize_speech
-from src.translator import translate_braille
+from backend.inference import run_pipeline
+from backend.model_loader import load_models
+from backend.result_formatting import predictions_markdown
+from backend.text_to_speech import synthesize_speech
+from backend.translator import translate_braille
 
 
 st.set_page_config(
@@ -31,6 +40,14 @@ st.title("Braille Reader")
 
 with st.sidebar:
     st.subheader("Detection settings")
+    detector_choice = st.segmented_control(
+        "Detector backend",
+        options=["Roboflow API", "Local YOLO"],
+        default="Roboflow API",
+    )
+    detector_backend = (
+        "roboflow" if detector_choice == "Roboflow API" else "local"
+    )
     detector_confidence = st.slider(
         "Confidence threshold",
         min_value=0.05,
@@ -45,6 +62,15 @@ with st.sidebar:
             "Grade 1 (uncontracted)"
             if grade == 1
             else "Grade 2 (contracted)"
+        ),
+    )
+    st.subheader("Debugging")
+    debug_crops_enabled = st.toggle(
+        "Save and display detected crops",
+        value=False,
+        help=(
+            "Temporarily saves the exact pre-classification crops to "
+            "debug_crops/ and displays them below the result."
         ),
     )
 
@@ -87,13 +113,16 @@ analyze_clicked = st.button(
 if analyze_clicked and image is not None:
     status = st.status("Recognizing Braille...", expanded=True)
     try:
-        status.write("Loading YOLO11n and EfficientNet-B0")
+        status.write("Loading EfficientNet-B0")
         model_bundle = get_models()
-        status.write("Detecting and classifying Braille cells")
+        status.write(f"Locating Braille cells with {detector_choice}")
+        status.write("Classifying detected crops locally")
         pipeline_result = run_pipeline(
             image=image,
             models=model_bundle,
             detector_confidence=detector_confidence,
+            detector_backend=detector_backend,
+            debug_crops=debug_crops_enabled,
         )
 
         st.session_state["pipeline_result"] = pipeline_result
@@ -130,13 +159,15 @@ if result is not None:
     if not result["predictions"]:
         st.warning("No Braille characters were detected.")
 
-    metric_columns = st.columns(3)
+    metric_columns = st.columns(5)
     metric_columns[0].metric("Detected characters", len(result["predictions"]))
     metric_columns[1].metric(
         "Inference time",
         f"{result['elapsed_seconds']:.2f} s",
     )
     metric_columns[2].metric("Device", result["device"])
+    metric_columns[3].metric("Detector", result["detector"])
+    metric_columns[4].metric("Primary classifier", result["classifier"])
 
     if not translation_result.available:
         st.warning(translation_result.error)
@@ -195,15 +226,26 @@ if result is not None:
         st.info("Text-to-speech integration is pending.")
 
     with st.expander("Character predictions"):
-        table_rows = [
-            {
-                "Order": prediction["reading_index"],
-                "Line": prediction["line"],
-                "Letter": prediction["letter"],
-                "Detector confidence": prediction["detector_confidence"],
-                "Classifier confidence": prediction["classifier_confidence"],
-                "Box": prediction["box"],
-            }
-            for prediction in result["predictions"]
-        ]
-        st.dataframe(table_rows, hide_index=True, width="stretch")
+        if result["predictions"]:
+            st.markdown(predictions_markdown(result["predictions"]))
+        else:
+            st.caption("No character predictions to display.")
+
+    if debug_crops_enabled and result.get("debug_crops"):
+        with st.expander("Debug crops", expanded=True):
+            st.caption(
+                "Exact YOLO-detected crops sent to EfficientNet-B0. "
+                "They are also saved in debug_crops/."
+            )
+            debug_columns = st.columns(min(4, len(result["debug_crops"])))
+            for position, debug_crop in enumerate(result["debug_crops"]):
+                column = debug_columns[position % len(debug_columns)]
+                column.image(
+                    debug_crop["image"],
+                    caption=(
+                        f"{debug_crop['index']:02d}: "
+                        f"{debug_crop['letter']} "
+                        f"({debug_crop['confidence']:.2f})"
+                    ),
+                    width="stretch",
+                )
