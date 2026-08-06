@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: opencv-python
+Version: 4.10.0.84
+Summary: Metadata-only shim that installs headless OpenCV for cloud deployment
+Requires-Python: >=3.10
+Requires-Dist: opencv-python-headless==4.10.0.84

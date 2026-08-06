@@ -7,3 +7,7 @@ torchvision==0.26.0
 Pillow==12.2.0
 numpy==2.3.5
 piper-tts==1.6.0
+# inference-sdk and Ultralytics require the opencv-python distribution name,
+# while Streamlit Cloud needs the headless cv2 binary. This local metadata-only
+# shim satisfies that dependency and installs opencv-python-headless instead.
+./deployment/opencv-python-headless-shim
