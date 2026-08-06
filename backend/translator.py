@@ -162,16 +162,18 @@ def _table_for_grade(grade: int) -> str:
 def text_to_braille(text: str, grade: int = 1) -> str:
     """Translate ordinary text to Unicode Braille cells."""
 
-    return _run_liblouis(["-d", DISPLAY_TABLE, _table_for_grade(grade)], text)
+    # Keep the display and translation tables in the legacy-compatible
+    # comma-separated TABLE argument. Older Liblouis releases, including the
+    # version on Streamlit's Debian image, reject the newer ``-d`` option.
+    tables = f"{DISPLAY_TABLE},{_table_for_grade(grade)}"
+    return _run_liblouis([tables], text)
 
 
 def braille_to_text(braille: str, grade: int = 1) -> str:
     """Back-translate Unicode Braille cells to ordinary text."""
 
-    return _run_liblouis(
-        ["-b", "-d", DISPLAY_TABLE, _table_for_grade(grade)],
-        braille,
-    )
+    tables = f"{DISPLAY_TABLE},{_table_for_grade(grade)}"
+    return _run_liblouis(["-b", tables], braille)
 
 
 @lru_cache(maxsize=1)
